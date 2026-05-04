@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Un Ratito Repostería - Business Suite</title>
+    
+    <!-- Librerías de Alto Rendimiento -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> <!-- Alertas Premium -->
+    <script src="https://unpkg.com/lucide@latest"></script> <!-- Iconografía Moderna -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<!-- 0. LOGIN -->
+<div id="login-overlay" class="overlay">
+    <div class="login-box-modern" id="login-box">
+        <img src="https://lejhmgcjegqxhcxohjmb.supabase.co/storage/v1/object/public/assets/lv_0_20260425104029.png" alt="Un Ratito Logo" class="login-logo-img">
+        <p class="subtitle">Ingresa tus credenciales para continuar</p>
+        
+        <div class="login-input-group">
+            <label>Usuario</label>
+            <input type="text" id="login-user" placeholder="ej. Emily" autocomplete="off" onkeydown="enterNavegar(event, 'login-pass')">
+        </div>
+        
+        <div class="login-input-group">
+            <label>Contraseña</label>
+            <input type="password" id="login-pass" placeholder="••••••••" onkeydown="enterAccion(event, intentarLogin)">
+        </div>
+        
+        <button class="btn btn-primario" onclick="intentarLogin()"><i data-lucide="log-in"></i> Ingresar al Sistema</button>
+        <p id="login-error" style="color:var(--peligro); font-size:0.875rem; margin-top:1rem; display:none; font-weight:800;">Credenciales incorrectas</p>
+    </div>
+</div>
+
+<!-- NAVEGACIÓN -->
+<aside class="sidebar-main" id="main-sidebar">
+    <div class="sidebar-brand">
+        <img src="https://lejhmgcjegqxhcxohjmb.supabase.co/storage/v1/object/public/assets/lv_0_20260425104029.png" alt="Un Ratito Logo" class="sidebar-logo-img">
+    </div>
+    <nav class="sidebar-menu">
+        <button class="nav-tab active" onclick="showView('pos', this)" title="Punto de Venta">
+            <i data-lucide="shopping-cart"></i> <span class="nav-label">Punto de Venta</span>
+        </button>
+        <button class="nav-tab" onclick="showView('gastos', this)" title="Gastos del Día">
+            <i data-lucide="receipt"></i> <span class="nav-label">Gastos del Día</span>
+        </button>
+        <button class="nav-tab role-admin" onclick="showView('surtido', this)" title="Surtido">
+            <i data-lucide="clipboard-list"></i> <span class="nav-label">Surtido</span>
+        </button>
+        <button class="nav-tab" onclick="showView('historial', this)" title="Historial">
+            <i data-lucide="bar-chart-2"></i> <span class="nav-label">Historial</span>
+        </button>
+        <button class="nav-tab role-admin" onclick="showView('config', this)" title="Configuración">
+            <i data-lucide="settings"></i> <span class="nav-label">Configuración</span>
+        </button>
+    </nav>
+    <div class="sidebar-footer">
+        <div id="user-display" style="font-size:0.875rem; color:#b0a89d; font-weight:800; margin-bottom: 0.75rem; text-align: center;"></div>
+        <button class="btn btn-outline" style="width:100%; font-size:0.8125rem; border-color:rgba(255,255,255,0.2); background:transparent; color:white;" onclick="location.reload()"><i data-lucide="log-out"></i> Cerrar Sesión</button>
+    </div>
+</aside>
+
+<main class="content-area">
+
+    <!-- 1. PUNTO DE VENTA (POS) -->
+    <section id="view-pos" class="view-section active">
+        <div class="view-header" style="margin-bottom: 1rem; padding: 0; border: none; background: transparent; box-shadow: none;">
+            <div>
+                <h2 class="view-title">Punto de Venta</h2>
+                <p class="view-subtitle">Selecciona productos, ajusta cantidades y cobra pedidos.</p>
+            </div>
+        </div>
+        <div id="indicador-edicion" style="display:none;">
+            <span>⚠️ Editando Venta Folio: <span id="edit-folio"></span></span>
+            <button class="btn btn-outline btn-sm" onclick="cancelarEdicion()">Cancelar</button>
+        </div>
+        <div class="pos-layout">
+            <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                <!-- HEADER DE BÚSQUEDA Y CATEGORÍAS -->
+                <div class="pos-filters-header">
+                    <div id="filtros-categorias" style="flex:1;"></div>
+                    <div class="pos-search-wrapper">
+                        <i data-lucide="search" style="position:absolute; left:0.75rem; top:50%; transform:translateY(-50%); width:1.1rem; height:1.1rem; color:var(--texto-muted);"></i>
+                        <input type="text" id="pos-search-input" class="pos-search-input" placeholder="Buscar producto..." oninput="actualizarBusquedaPOS(this.value)">
+                    </div>
+                </div>
+                <div class="grid-productos" id="pos-grid"></div>
+            </div>
+            
+            <!-- Ticket Desktop -->
+            <div class="sidebar-ticket">
+                <div style="padding:1rem; border-bottom:2px solid var(--borde); background:var(--secundario); flex-shrink: 0;">
+                    <h3 style="margin:0; font-size:1rem; font-weight:900; color:var(--texto); display:flex; align-items:center; gap:0.5rem;"><i data-lucide="shopping-bag" style="color:var(--primario)"></i> Ticket Actual</h3>
+                </div>
+                <div id="pos-ticket" style="flex:1; overflow-y:auto; padding:0.875rem; display:flex; flex-direction:column; gap:0.625rem; background:white;"></div>
+                <div style="padding:1.25rem; background:var(--secundario); border-top:2px solid var(--borde); flex-shrink: 0;">
+                    <div style="display:flex; justify-content:space-between; font-size:1.375rem; font-weight:900; color:var(--texto);">
+                        <span>Total:</span> <span id="pos-total" class="tabular-nums">$0.00</span>
+                    </div>
+                    <button class="btn btn-primario" style="width:100%; margin-top:1rem; font-size:1.125rem; padding:0.875rem;" id="btn-abrir-pago" onclick="abrirModalPago()" disabled><i data-lucide="credit-card"></i> Cobrar</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. GASTOS DEL DÍA -->
+    <section id="view-gastos" class="view-section">
+        <div class="table-wrapper">
+            <div class="view-header" style="flex-direction: column; align-items: stretch; gap: 0.75rem;">
+                <div>
+                    <h2 class="view-title">Gastos del Día</h2>
+                    <p class="view-subtitle">Registra salidas de caja y mantén el control de tus finanzas.</p>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; border-top: 1px solid var(--secundario); padding-top: 0.75rem;">
+                    <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                        <span style="font-weight:800; font-size: 0.875rem; color:var(--texto);"><i data-lucide="filter" style="width:1rem; height:1rem; vertical-align:middle; color:var(--primario)"></i> Filtrar:</span>
+                        <select id="tipo-filtro-gastos" onchange="cambiarModoFiltroGastos()" style="width:auto; padding:0.4rem 0.75rem;">
+                            <option value="hoy" selected>Hoy</option>
+                            <option value="dia">Día</option>
+                            <option value="rango">Rango</option>
+                            <option value="todos">Todos</option>
+                        </select>
+                        <div id="filtro-dia-container-gastos" style="display:none; align-items:center; gap:0.375rem;">
+                            <input type="date" id="filtro-fecha-dia-gastos" onchange="cargarGastos()" style="width:auto; padding:0.4rem;">
+                        </div>
+                        <div id="filtro-rango-container-gastos" style="display:none; align-items:center; gap:0.375rem;">
+                            <input type="date" id="filtro-fecha-inicio-gastos" onchange="cargarGastos()" style="width:auto; padding:0.4rem;"> 
+                            <span>a</span> 
+                            <input type="date" id="filtro-fecha-fin-gastos" onchange="cargarGastos()" style="width:auto; padding:0.4rem;">
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                        <div style="font-size:1.0625rem; font-weight: 800;">Total Gastos: <span id="gastos-total-filtro" style="color:var(--peligro); font-weight:900;" class="tabular-nums">$0.00</span></div>
+                        <button class="btn btn-peligro" onclick="abrirModalGasto()"><i data-lucide="plus-circle"></i> Registrar Gasto</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Fecha</th><th>Proveedor</th><th>Categoría</th><th>Producto/Concepto</th><th>Monto</th><th>Registrado por</th><th>Acciones</th></tr></thead>
+                    <tbody id="gastos-tabla"></tbody>
+                </table>
+            </div>
+            <!-- Alternativa Móvil -->
+            <div id="gastos-cards-mobile" class="mobile-cards"></div>
+        </div>
+    </section>
+
+    <!-- 3. SURTIDO -->
+    <section id="view-surtido" class="view-section">
+        <div class="table-wrapper">
+            <div class="view-header" style="flex-direction: column; align-items: stretch; gap: 0.75rem;">
+                <div>
+                    <h2 class="view-title">Inventario y Compras</h2>
+                    <p class="view-subtitle">Gestiona tu stock, proveedores y listas de faltantes.</p>
+                </div>
+                <div style="display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 0.75rem; border-top: 1px solid var(--secundario); padding-top: 0.75rem;">
+                    <div style="display: flex; gap: 0.625rem; flex-wrap: wrap;">
+                        <button class="btn btn-whatsapp" onclick="abrirModalWhatsApp()"><i data-lucide="share-2"></i> Compartir</button>
+                        <button id="btn-filtro-sams" class="btn btn-outline" onclick="toggleListaSams()"><i data-lucide="alert-circle"></i> Ver Faltantes</button>
+                        <button class="btn btn-primario" onclick="abrirModalInsumo()"><i data-lucide="plus-circle"></i> Añadir Insumo</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Insumo</th><th>Proveedor</th><th>Actual</th><th>Min</th><th>Max</th><th>Acciones</th></tr></thead>
+                    <tbody id="surtido-tabla"></tbody>
+                </table>
+            </div>
+            <!-- Alternativa Móvil -->
+            <div id="surtido-cards-mobile" class="mobile-cards"></div>
+        </div>
+    </section>
+
+    <!-- 4. CONFIGURACIÓN -->
+    <section id="view-config" class="view-section">
+        <div class="config-wrapper">
+            <div class="view-header" style="flex-direction: column; align-items: flex-start; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <h2 class="view-title">Configuración del Sistema</h2>
+                    <p class="view-subtitle">Administra tu catálogo de productos y los usuarios del sistema.</p>
+                </div>
+            </div>
+            
+            <div class="config-layout">
+                <aside class="config-sidebar">
+                    <button class="config-tab active" onclick="showConfigTab('productos', this)">
+                        <i data-lucide="package"></i>
+                        <span>Productos</span>
+                    </button>
+                    <button class="config-tab" onclick="showConfigTab('usuarios', this)">
+                        <i data-lucide="users"></i>
+                        <span>Usuarios</span>
+                    </button>
+                </aside>
+                
+                <div class="config-content">
+                    <!-- SUBVISTA PRODUCTOS -->
+                    <div id="config-productos" class="config-panel active">
+                        <div class="view-header">
+                            <div style="font-weight:900; font-size: 1.125rem; display:flex; align-items:center; gap:0.5rem;">
+                                <i data-lucide="package" style="color:var(--primario);"></i>
+                                Catálogo de Productos
+                            </div>
+                            <button class="btn btn-primario" onclick="abrirModalProducto()">
+                                <i data-lucide="plus-circle"></i>
+                                Añadir Producto
+                            </button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Categoría</th>
+                                        <th>Precio</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla-productos"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- SUBVISTA USUARIOS -->
+                    <div id="config-usuarios" class="config-panel">
+                        <div class="view-header">
+                            <div style="font-weight:900; font-size: 1.125rem; display:flex; align-items:center; gap:0.5rem;">
+                                <i data-lucide="users" style="color:var(--primario);"></i>
+                                Gestión de Usuarios
+                            </div>
+                            <button class="btn btn-primario" onclick="abrirModalUsuario()">
+                                <i data-lucide="user-plus"></i>
+                                Añadir Usuario
+                            </button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nombre Completo</th>
+                                        <th>Usuario</th>
+                                        <th>Rol</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla-usuarios"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 5. HISTORIAL -->
+    <section id="view-historial" class="view-section">
+        <div class="table-wrapper">
+            <div class="view-header" style="flex-direction: column; align-items: stretch; gap: 0.75rem; margin-bottom: 0;">
+                <div>
+                    <h2 class="view-title">Historial de Ventas</h2>
+                    <p class="view-subtitle">Consulta folios, métodos de pago, estados y movimientos del día.</p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; border-top: 1px solid var(--secundario); padding-top: 0.75rem;">
+                    <span style="font-weight:800; font-size: 0.875rem; color:var(--texto);"><i data-lucide="calendar" style="width:1rem; height:1rem; vertical-align:middle; color:var(--primario)"></i> Filtrar:</span>
+                    <select id="tipo-filtro-historial" onchange="cambiarModoFiltro()" style="width:auto; padding:0.4rem 0.75rem;">
+                        <option value="hoy" selected>Día de Hoy (Corte de Caja)</option>
+                        <option value="dia">Día Específico</option>
+                        <option value="rango">Rango de Fechas</option>
+                        <option value="todos">Todo el Historial</option>
+                    </select>
+                    
+                    <div id="filtro-dia-container" style="display:none; align-items:center; gap:0.375rem;">
+                        <input type="date" id="filtro-fecha-dia" onchange="cargarVentas()" style="width:auto; padding:0.4rem;">
+                    </div>
+                    <div id="filtro-rango-container" style="display:none; align-items:center; gap:0.375rem;">
+                        <input type="date" id="filtro-fecha-inicio" onchange="cargarVentas()" style="width:auto; padding:0.4rem;"> 
+                        <span>a</span> 
+                        <input type="date" id="filtro-fecha-fin" onchange="cargarVentas()" style="width:auto; padding:0.4rem;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resumen Dinámico -->
+            <div id="resumen-dashboard" style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1rem; margin-top:1rem;"></div>
+            
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Folio</th><th>Hora/Fecha</th><th>Cajero</th><th>Método</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead>
+                    <tbody id="historial-tabla"></tbody>
+                </table>
+            </div>
+            <!-- Alternativa Móvil -->
+            <div id="historial-cards-mobile" class="mobile-cards"></div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ============================================================ -->
+<!-- MODALES CENTRALES FLOTANTES -->
+<!-- ============================================================ -->
+
+<!-- Modal: VARIANTS PRODUCTO POS -->
+<div id="modal-variantes-pos" class="overlay modal-gsap" style="display:flex;">
+    <div class="modal-box" id="modal-variantes-pos-box" style="max-width: 26rem;">
+        <h3 id="titulo-variantes-pos" style="margin-top:0; margin-bottom:1rem; font-size:1.25rem; font-weight:900; border-bottom:2px solid var(--borde); padding-bottom:0.75rem; color:var(--texto);"></h3>
+        <p style="font-size:0.875rem; color:var(--texto-muted); font-weight:800; margin-bottom:1rem; text-transform:uppercase;">Elige una opción:</p>
+        <div id="lista-variantes-pos" style="display:flex; flex-direction:column; gap:0.5rem; max-height: 50vh; overflow-y:auto; padding-right:0.5rem;"></div>
+        <div style="margin-top: 1.25rem; display: flex;">
+            <button class="btn btn-outline" style="width:100%;" onclick="cerrarModal('modal-variantes-pos')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal AÑADIR / EDITAR VARIANTE ADMIN -->
+<div id="modal-form-variante-admin" class="overlay modal-gsap" style="display:flex;">
+    <div class="modal-box" id="modal-variante-admin-box">
+        <h3 id="form-variante-titulo" style="margin-top:0; margin-bottom:1.25rem; font-size:1.25rem; border-bottom:2px solid var(--borde); padding-bottom:0.75rem; font-weight:900; display:flex; align-items:center; gap:0.5rem; color:var(--texto);">
+            <i data-lucide="layers" style="color:var(--primario);"></i>
+            Gestión de Variantes
+        </h3>
+        <p id="variante-producto-nombre" style="font-weight:900; color:var(--texto-muted); margin-bottom:1rem;"></p>
+        
+        <input type="hidden" id="v-producto-id">
+        <input type="hidden" id="v-id">
+        
+        <div style="background:var(--secundario); padding:1rem; border-radius:var(--radius-md); border:1px solid var(--borde); margin-bottom:1rem;">
+            <div class="form-group">
+                <label>Nombre de la Variante (Ej. Mora Azul)</label>
+                <input type="text" id="v-nombre">
+            </div>
+            <div style="display:flex; gap:0.75rem;">
+                <div class="form-group" style="flex:1;">
+                    <label>Precio Extra ($)</label>
+                    <input type="text" id="v-precio-extra" placeholder="$0.00" oninput="formatearMonedaInput(event)">
+                </div>
+                <div class="form-group" style="flex:1;">
+                    <label>Orden</label>
+                    <input type="number" id="v-orden" value="0">
+                </div>
+            </div>
+            <button id="btn-guardar-variante" class="btn btn-primario" style="width:100%;" onclick="guardarVarianteProducto()"><i data-lucide="plus"></i> Guardar Variante</button>
+        </div>
+        
+        <div style="font-size:0.75rem; font-weight:800; color:var(--texto-muted); text-transform:uppercase; margin-bottom:0.5rem;">Variantes Existentes</div>
+        <div id="lista-variantes-admin" style="max-height:15rem; overflow-y:auto; border:2px solid var(--borde); border-radius:var(--radius-md); background:white;"></div>
+
+        <div style="margin-top: 1.25rem;">
+            <button class="btn btn-outline" style="width:100%;" onclick="cerrarModal('modal-form-variante-admin')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Barra cobrar móvil -->
+<div id="barra-cobrar-movil">
+  <div>
+    <div id="bcm-label">Total</div>
+    <div id="bcm-total" class="tabular-nums">$0.00</div>
+  </div>
+  <button id="bcm-btn" onclick="abrirResumenMovil()">Cobrar →</button>
+</div>
+
+<!-- Modal resumen checkout móvil -->
+<div id="modal-resumen-movil" class="overlay modal-gsap" style="display:flex">
+  <div class="modal-box" id="modal-resumen-movil-box" style="max-width:24rem; width:95%; padding: 1.25rem;">
+    <h3 style="margin:0 0 1rem; font-size:1.25rem; font-weight:900; border-bottom:2px solid var(--borde); padding-bottom:0.75rem; display:flex; align-items:center; gap:0.5rem; color:var(--texto);">
+      <i data-lucide="shopping-cart" style="color:var(--primario)"></i> Tu Pedido
+    </h3>
+    <div id="resumen-movil-lista" style="max-height:55vh; overflow-y:auto; margin-bottom:1rem; padding-right:0.5rem;"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; font-size:1.375rem; font-weight:900; border-top:2px solid var(--borde); padding-top:1rem; margin-bottom:1.25rem;">
+      <span>Total</span>
+      <span id="resumen-movil-total" class="tabular-nums" style="color:var(--texto)">$0.00</span>
+    </div>
+    <div style="display:flex; gap:0.5rem;">
+      <button class="btn btn-peligro" style="padding:0.625rem;" onclick="vaciarCarritoCompleto()" title="Vaciar pedido"><i data-lucide="trash-2"></i></button>
+      <button class="btn btn-outline" style="flex:1" onclick="cerrarModal('modal-resumen-movil')">← Volver</button>
+      <button class="btn btn-primario" style="flex:2; font-size:1.125rem;" onclick="cerrarModal('modal-resumen-movil'); setTimeout(abrirModalPago,220)"><i data-lucide="credit-card"></i> Pagar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: WhatsApp Sharing -->
+<div id="modal-whatsapp" class="overlay modal-gsap" style="display:flex;">
+    <div class="modal-box" id="modal-whatsapp-box" style="max-width: 22rem;">
+        <h3 style="margin-top:0; margin-bottom:1.25rem; font-size: 1.25rem; border-bottom: 2px solid var(--borde); padding-bottom: 0.75rem; font-weight: 900; display:flex; align-items:center; gap:0.5rem; color:var(--texto);">
+            <i data-lucide="send" style="color: var(--whatsapp)"></i> Compartir Lista
+        </h3>
+        <div class="form-group">
+            <label>Número de WhatsApp (10 dígitos)</label>
+            <input type="tel" id="wa-numero" list="saved-wa-numbers" placeholder="Ej: 9611234567" onkeydown="enterAccion(event, enviarWhatsAppLista)">
+            <datalist id="saved-wa-numbers"></datalist>
+            <small style="color: var(--texto-muted); font-size: 0.75rem; display:block; margin-top:0.25rem;">El sistema recordará este número.</small>
+        </div>
+        <div style="margin-top: 1.5rem; display: flex; gap:0.75rem;">
+            <button class="btn btn-outline" style="flex:1;" onclick="cerrarModalWhatsApp()">Cancelar</button>
+            <button class="btn btn-whatsapp" style="flex:2; color:white; background:var(--whatsapp); border:none;" onclick="enviarWhatsAppLista()"><i data-lucide="external-link"></i> Enviar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Cobrar POS -->
+<div id="modal-pago" class="overlay modal-gsap" style="display:flex;">
+    <div class="modal-box" id="modal-pago-box">
+        <h2 style="margin-top:0; text-align:center; font-size:1.5rem; font-weight: 900; display:flex; align-items:center; justify-content:center; gap:0.5rem; color:var(--texto);"><i data-lucide="check-circle" style="color:var(--primario)"></i> Completar Venta</h2>
+        <div style="text-align:center; font-size:2.5rem; font-weight:900; color:var(--texto); margin: 1.25rem 0;" class="tabular-nums"><span id="modal-pago-total">$0.00</span></div>
+        <div class="pago-row"><div class="pago-label"><i data-lucide="banknote" style="color:#788562;"></i> Efectivo</div><div class="pago-input-wrapper"><input type="text" id="input-efectivo" placeholder="$0.00" oninput="formatearMonedaInput(event); validarMontos()" onkeydown="enterNavegar(event, 'input-transferencia')"></div></div>
+        <div class="pago-row"><div class="pago-label"><i data-lucide="credit-card" style="color:var(--info);"></i> Transf/TC</div><div class="pago-input-wrapper"><input type="text" id="input-transferencia" placeholder="$0.00" oninput="formatearMonedaInput(event); validarMontos()" onkeydown="enterAccionCondicional(event)"></div></div>
+        <div id="pago-mensaje" style="text-align:center; font-weight:800; height:1.25rem; margin-bottom:1rem; font-size:0.9375rem;"></div>
+        <div style="display:flex; gap:0.75rem; margin-top:1rem;">
+            <button class="btn btn-outline" style="flex:1;" onclick="cerrarModalPago()">Cancelar</button>
+            <button class="btn btn-primario" style="flex:1;" id="btn-confirmar-pago" disabled onclick="procesarVentaBD()">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Añadir INSUMO -->
+<div id="modal-form-insumo" class="overlay modal-gsap" style="display:flex;">
+    <div class="modal-box" id="modal-insumo-box">
+        <h3 id="form-insumo-titulo" style="margin-top:0; margin-bottom:1.25rem; font-size: 1.25rem; border-bottom: 2px solid var(--borde); padding-bottom: 0.75rem; font-weight: 900; display:flex; align-items:center; gap:0.5rem; color:var(--texto);"><i data-lucide="box" style="color:var(--primario)"></i> Añadir Insumo</h3>
+        <input type="hidden" id="i-id">
+        <div class="form-group"><label>Nombre del Insumo</label><input type="text" id="i-nombre" onkeydown="enterNavegar(event, 'i-proveedor')"></div>
+        <div class="form-group"><label>Proveedor</label><input type="text" id="i-proveedor" style="text-transform: uppercase;" onkeydown="enterNavegar(event, 'i-actual')"></div>
+        <div style="display:flex; gap:0.75rem;">
+            <div class="form-group" style="flex:1;"><label>Actual</label><input type="number" id="i-actual" step="0.01" onkeydown="enterNavegar(event, 'i-minimo')"></div>
+            <div class="form-group" style="flex:1;"><label>Min (🔴)</label><input type="number" id="i-minimo" step="0.01" onkeydown="enterNavegar(event, 'i-maximo')"></div>
+            <div class="form-group" style="flex:1;"><label>Max (🟢)</label><input type="number" id="i-maximo" step="0.01" onkeydown="enterAccion(event, guardarInsumo)"></div>
+        </div>
+        <div style="margin-top: 1.25rem; display: flex; gap:0.75rem;">
+            <button class="btn btn-outline" style="flex:1;" onclick="cerrarModalInsumo()">Cancelar</button>
+            <button id="btn-guardar-insumo" class="btn btn-primario" style="flex:2;" onclick="guardarInsumo()"><i data-lucide="save"></i> Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Añadir PRODUCTO -->
+<div id="modal-form-producto" class="overlay modal-gsap" style="display:flex;">
+    <div class="modal-box" id="modal-producto-box">
+        <h3 id="form-prod-titulo" style="margin-top:0; margin-bottom:1.25rem; font-size: 1.25rem; border-bottom: 2px solid var(--borde); padding-bottom: 0.75rem; font-weight: 900; display:flex; align-items:center; gap:0.5rem; color:var(--texto);"><i data-lucide="tag" style="color:var(--primario)"></i> Añadir Producto</h3>
+        <input type="hidden" id="p-id">
+        <div class="form-group"><label>Nombre del Producto</label><input type="text" id="p-nombre" onkeydown="enterNavegar(event, 'p-categoria')"></div>
+        <div class="form-group">
+            <label>Categoría</label>
+            <div style="display:flex; gap:0.5rem;">
+                <select id="p-categoria" style="flex:1;" onkeydown="enterNavegar(event, 'p-precio')"></select>
+                <button class="btn btn-outline" style="padding:0.625rem;" onclick="abrirModalCategorias('productos')"><i data-lucide="settings"></i></button>
+            </div>
+        </div>
+        <div class="form-group"><label>Precio de Venta ($)</label><input type="text" id="p-precio" placeholder="$0.00" oninput="formatearMonedaInput(event)" onkeydown="enterAccion(event, guardarProducto)"></div>
+        <div style="margin-top: 1.25rem; display: flex; gap:0.75rem;">
+            <button class="btn btn-outline" style="flex:1;" onclick="cerrarModalProducto()">Cancelar</button>
+            <button id="btn-guardar-producto" class="btn btn-primario" style="flex:2;" onclick="guardarProducto()"><i data-lucide="save"></i> Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal AÑADIR / EDITAR USUARIO -->
+<div id="modal-form-usuario" class="overlay modal-gsap" style="display:flex;">
+    <div class="modal-box" id="modal-usuario-box">
+        <h3 id="form-usuario-titulo" style="margin-top:0; margin-bottom:1.25rem; font-size:1.25rem; border-bottom:2px solid var(--borde); padding-bottom:0.75rem; font-weight:900; display:flex; align-items:center; gap:0.5rem; color:var(--texto);">
+            <i data-lucide="user-plus" style="color:var(--primario);"></i>
+            Añadir Usuario
+        </h3>
+        <input type="hidden" id="u-id">
+        <div class="form-group">
+            <label>Nombre Completo</label>
+            <input type="text" id="u-nombre" onkeydown="enterNavegar(event, 'u-username')">
+        </div>
+        <div class="form-group">
+            <label>Usuario</label>
+            <input type="text" id="u-username" onkeydown="enterNavegar(event, 'u-password')">
+        </div>
+        <div class="form-group">
+            <label>Contraseña</label>
+            <input type="text" id="u-password" onkeydown="enterNavegar(event, 'u-rol')">
+        </div>
+        <div class="form-group">
+            <label>Rol</label>
+            <select id="u-rol" onkeydown="enterAccion(event, guardarUsuario)">
+                <option value="empleado">Empleado</option>
+                <option value="admin">Admin</option>
+                <option value="soporte">Soporte</option>
+            </select>
+        </div>
+        <div style="margin-top: 1.25rem; display: flex; gap:0.75rem;">
+            <button class="btn btn-outline" style="flex:1;" onclick="cerrarModalUsuario()">Cancelar</button>
+            <button id="btn-guardar-usuario" class="btn btn-primario" style="flex:2;" onclick="guardarUsuario()">
+                <i data-lucide="save"></i>
+                Guardar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Añadir GASTO -->
+<div id="modal-form-gasto" class="overlay modal-gsap" style="display:flex;">
+    <div class="modal-box" id="modal-gasto-box">
+        <h3 id="form-gasto-titulo" style="margin-top:0; margin-bottom:1.25rem; font-size: 1.25rem; border-bottom: 2px solid var(--borde); padding-bottom: 0.75rem; font-weight: 900; display:flex; align-items:center; gap:0.5rem; color:var(--texto);"><i data-lucide="minus-circle" style="color:var(--peligro)"></i> Registrar Gasto</h3>
+        <input type="hidden" id="g-id">
+        
+        <div class="form-group"><label>Monto a pagar</label><input type="text" id="g-monto" oninput="formatearMonedaInput(event)" placeholder="$0.00" style="font-size: 1.25rem; font-weight: 900; color: var(--texto); border-color:var(--borde);" onkeydown="enterNavegar(event, 'g-proveedor')"></div>
+        <div class="form-group"><label>Proveedor / Tienda</label><input type="text" id="g-proveedor" list="lista-proveedores" style="text-transform: uppercase;" onkeydown="enterNavegar(event, 'g-categoria')"><datalist id="lista-proveedores"></datalist></div>
+        
+        <div class="form-group">
+            <label>Categoría</label>
+            <div style="display:flex; gap:0.5rem;">
+                <select id="g-categoria" style="flex:1;" onkeydown="enterNavegar(event, 'g-desc')"></select>
+                <button class="btn btn-outline" style="padding:0.625rem;" onclick="abrirModalCategorias('gastos')"><i data-lucide="settings"></i></button>
+            </div>
+        </div>
+        
+        <div class="form-group"><label>Producto / Concepto Exacto</label><input type="text" id="g-desc" list="lista-conceptos" placeholder="Ej. Leche deslactosada" onkeydown="enterAccion(event, guardarGasto)"><datalist id="lista-conceptos"></datalist></div>
+        
+        <div style="margin-top: 1.25rem; display: flex; gap:0.75rem;">
+             <button class="btn btn-outline" style="flex:1;" onclick="cerrarModalGasto()">Cancelar</button>
+             <button id="btn-guardar-gasto" class="btn btn-peligro" style="flex:2;" onclick="guardarGasto()"><i data-lucide="save"></i> Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: GESTOR DE CATEGORÍAS -->
+<div id="modal-categorias" class="overlay modal-gsap" style="display:flex;">
+    <div class="modal-box" id="modal-categorias-box">
+        <h2 id="titulo-modal-cat" style="margin-top:0; border-bottom: 2px solid var(--borde); padding-bottom: 0.75rem; font-size:1.25rem; font-weight: 900; display:flex; align-items:center; gap:0.5rem; color:var(--texto);"><i data-lucide="folder-tree" style="color:var(--primario)"></i> Categorías</h2>
+        <input type="hidden" id="tipo-cat-actual">
+        <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem; margin-top: 0.75rem;">
+            <input type="text" id="input-nueva-cat" placeholder="Nueva..." style="text-transform: uppercase; flex:1; padding:0.625rem; border-radius:var(--radius-md); border:2px solid var(--borde); background:var(--secundario); color:var(--texto);" onkeydown="enterAccion(event, guardarNuevaCategoria)">
+            <button id="btn-guardar-categoria" class="btn btn-primario" style="padding:0.625rem 1rem;" onclick="guardarNuevaCategoria()"><i data-lucide="plus"></i></button>
+        </div>
+        <div style="flex:1; overflow-y:auto; border: 2px solid var(--borde); border-radius: var(--radius-md); margin-bottom: 1.25rem; max-height:14rem; background:white;"><div id="lista-categorias-modal"></div></div>
+        <button class="btn btn-outline" style="width:100%;" onclick="cerrarModalCategorias()">Cerrar</button>
+    </div>
+</div>
+
+<!-- WIDGET DE ZOOM GLOBAL -->
+<div class="zoom-widget-container">
+    <div class="zoom-menu" id="zoom-menu">
+        <div class="zoom-header">Tamaño: <span id="zoom-text-val">100%</span></div>
+        <button class="zoom-btn aumentar" onclick="cambiarZoomGlobal(10)">Aumentar <span>+</span></button>
+        <button class="zoom-btn restablecer" onclick="cambiarZoomGlobal(100, true)">Restablecer</button>
+        <button class="zoom-btn disminuir" onclick="cambiarZoomGlobal(-10)">Disminuir <span>-</span></button>
+    </div>
+    <button class="fab-btn" onclick="toggleZoomMenu()" title="Ajustar Tamaño de Pantalla"><i data-lucide="search"></i></button>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
