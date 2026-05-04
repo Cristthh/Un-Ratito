@@ -324,7 +324,25 @@ tr.estado-verde .input-stock { border-color: #92CDA0; color: #43694F; background
 /* ========================================= */
 /* --- WIDGET DE ZOOM ---                    */
 /* ========================================= */
-.zoom-widget-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 4000; display: flex; flex-direction: column; align-items: flex-end; gap: 0.75rem; }
+.zoom-widget-container { 
+    position: fixed; 
+    bottom: 1.5rem; 
+    right: 1.5rem; 
+    z-index: 2500; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: flex-end; 
+    gap: 0.75rem;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+/* Clase para ocultar suavemente cuando hay modales */
+.zoom-widget-container.oculto-por-modal {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(15px);
+}
+
 .zoom-menu { background: white; border-radius: var(--radius-lg); box-shadow: var(--shadow-hover); padding: 0.75rem; display: none; flex-direction: column; gap: 0.375rem; width: 10rem; border: 1px solid var(--borde); }
 .zoom-header { text-align: center; font-weight: 800; font-size: 0.75rem; color: var(--texto-muted); padding-bottom: 0.5rem; border-bottom: 1px solid var(--secundario); margin-bottom: 0.25rem; }
 .zoom-btn { background: var(--secundario); border: none; padding: 0.625rem 0.75rem; border-radius: var(--radius-sm); font-weight: 800; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--texto); transition: background-color 0.2s, border-color 0.2s, color 0.2s; font-size: 0.8125rem; border: 1px solid var(--borde); }
@@ -739,7 +757,12 @@ tr.estado-verde .input-stock { border-color: #92CDA0; color: #43694F; background
     .pos-search-wrapper { width: 100% !important; margin-bottom: 0.5rem; }
     .pos-filters-header { flex-direction: column; align-items: stretch; margin-bottom: 0.5rem; }
 
-    .zoom-widget-container { bottom: 130px; right: 15px; z-index: 5000; } 
+    .zoom-widget-container { 
+        bottom: 78px; 
+        right: 12px; 
+        z-index: 2500; 
+    }
+
     .fab-btn { width: 44px; height: 44px; font-size: 18px; }
 
     .view-header { flex-direction: column; align-items: stretch; gap: 0.75rem; }
