@@ -891,3 +891,54 @@ tr.estado-verde .input-stock { border-color: #92CDA0; color: #43694F; background
         gap: 0.375rem;
     }
 }
+
+/* ========================================= */
+/* --- CLASES PREMIUM ADICIONALES ---        */
+/* ========================================= */
+.select-premium {
+    background-color: var(--secundario);
+    border: 2px solid var(--borde);
+    border-radius: var(--radius-md);
+    font-family: 'Nunito', sans-serif;
+    color: var(--texto);
+    padding: 0.5rem 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+    outline: none;
+}
+
+.select-premium:focus, .select-premium:hover {
+    border-color: var(--primario);
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(224, 176, 96, 0.2);
+}
+.sub-tab-container {
+    display: inline-flex;
+    background: var(--secundario);
+    padding: 0.35rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--borde);
+    gap: 0.25rem;
+}
+.sub-tab {
+    border: none;
+    background: transparent;
+    padding: 0.6rem 1.25rem;
+    border-radius: var(--radius-sm);
+    font-weight: 800;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: var(--texto-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+    font-family: 'Nunito', sans-serif;
+}
+.sub-tab.active {
+    background: white;
+    color: var(--primario-hover);
+    box-shadow: var(--shadow-base);
+}
