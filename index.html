@@ -5,21 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Un Ratito Repostería - Business Suite</title>
     
-    <!-- Librerías de Alto Rendimiento -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> <!-- Alertas Premium -->
-    <script src="https://unpkg.com/lucide@latest"></script> <!-- Iconografía Moderna -->
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> <script src="https://unpkg.com/lucide@latest"></script> <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="style.css">
+
+    <style>
+        .input-filtro {
+            width: auto;
+            padding: 0.5rem 0.875rem;
+            border: 2px solid var(--borde);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 800;
+            background: var(--secundario);
+            color: var(--texto);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+            cursor: pointer;
+        }
+        .input-filtro:focus, .input-filtro:hover {
+            border-color: var(--primario);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(224, 176, 96, 0.2);
+        }
+    </style>
 </head>
 <body>
 
 <div id="toast-container"></div>
 
-<!-- 0. LOGIN -->
 <div id="login-overlay" class="overlay">
     <div class="login-box-modern" id="login-box">
         <img src="https://lejhmgcjegqxhcxohjmb.supabase.co/storage/v1/object/public/assets/lv_0_20260425104029.png" alt="Un Ratito Logo" class="login-logo-img">
@@ -32,7 +50,12 @@
         
         <div class="login-input-group">
             <label>Contraseña</label>
-            <input type="password" id="login-pass" placeholder="••••••••" onkeydown="enterAccion(event, intentarLogin)">
+            <div style="position: relative; display: flex; align-items: center;">
+                <input type="password" id="login-pass" placeholder="••••••••" onkeydown="enterAccion(event, intentarLogin)" style="width: 100%; padding-right: 2.5rem;">
+                <button type="button" onclick="togglePassword()" style="position: absolute; right: 0.75rem; background: transparent; border: none; cursor: pointer; color: #907050; display: flex; align-items: center; padding: 0; z-index: 10;">
+                    <i data-lucide="eye" id="icono-pass" style="width: 1.25rem; height: 1.25rem; opacity: 0.7;"></i>
+                </button>
+            </div>
         </div>
         
         <button class="btn btn-primario" onclick="intentarLogin()"><i data-lucide="log-in"></i> Ingresar al Sistema</button>
@@ -40,7 +63,6 @@
     </div>
 </div>
 
-<!-- NAVEGACIÓN -->
 <aside class="sidebar-main" id="main-sidebar">
     <div class="sidebar-brand">
         <img src="https://lejhmgcjegqxhcxohjmb.supabase.co/storage/v1/object/public/assets/lv_0_20260425104029.png" alt="Un Ratito Logo" class="sidebar-logo-img">
@@ -70,7 +92,6 @@
 
 <main class="content-area">
 
-    <!-- 1. PUNTO DE VENTA (POS) -->
     <section id="view-pos" class="view-section active">
         <div class="view-header" style="margin-bottom: 1rem; padding: 0; border: none; background: transparent; box-shadow: none;">
             <div>
@@ -84,7 +105,6 @@
         </div>
         <div class="pos-layout">
             <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
-                <!-- HEADER DE BÚSQUEDA Y CATEGORÍAS -->
                 <div class="pos-filters-header">
                     <div id="filtros-categorias" style="flex:1;"></div>
                     <div class="pos-search-wrapper">
@@ -95,7 +115,6 @@
                 <div class="grid-productos" id="pos-grid"></div>
             </div>
             
-            <!-- Ticket Desktop -->
             <div class="sidebar-ticket">
                 <div style="padding:1rem; border-bottom:2px solid var(--borde); background:var(--secundario); flex-shrink: 0;">
                     <h3 style="margin:0; font-size:1rem; font-weight:900; color:var(--texto); display:flex; align-items:center; gap:0.5rem;"><i data-lucide="shopping-bag" style="color:var(--primario)"></i> Ticket Actual</h3>
@@ -111,7 +130,6 @@
         </div>
     </section>
 
-    <!-- 2. GASTOS DEL DÍA -->
     <section id="view-gastos" class="view-section">
         <div class="table-wrapper">
             <div class="view-header" style="flex-direction: column; align-items: stretch; gap: 0.75rem;">
@@ -122,19 +140,19 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; border-top: 1px solid var(--secundario); padding-top: 0.75rem;">
                     <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                         <span style="font-weight:800; font-size: 0.875rem; color:var(--texto);"><i data-lucide="filter" style="width:1rem; height:1rem; vertical-align:middle; color:var(--primario)"></i> Filtrar:</span>
-                        <select id="tipo-filtro-gastos" onchange="cambiarModoFiltroGastos()" style="width:auto; padding:0.4rem 0.75rem;">
+                        <select id="tipo-filtro-gastos" onchange="cambiarModoFiltroGastos()" class="input-filtro">
                             <option value="hoy" selected>Hoy</option>
                             <option value="dia">Día</option>
                             <option value="rango">Rango</option>
                             <option value="todos">Todos</option>
                         </select>
                         <div id="filtro-dia-container-gastos" style="display:none; align-items:center; gap:0.375rem;">
-                            <input type="date" id="filtro-fecha-dia-gastos" onchange="cargarGastos()" style="width:auto; padding:0.4rem;">
+                            <input type="date" id="filtro-fecha-dia-gastos" onchange="cargarGastos()" class="input-filtro">
                         </div>
                         <div id="filtro-rango-container-gastos" style="display:none; align-items:center; gap:0.375rem;">
-                            <input type="date" id="filtro-fecha-inicio-gastos" onchange="cargarGastos()" style="width:auto; padding:0.4rem;"> 
+                            <input type="date" id="filtro-fecha-inicio-gastos" onchange="cargarGastos()" class="input-filtro"> 
                             <span>a</span> 
-                            <input type="date" id="filtro-fecha-fin-gastos" onchange="cargarGastos()" style="width:auto; padding:0.4rem;">
+                            <input type="date" id="filtro-fecha-fin-gastos" onchange="cargarGastos()" class="input-filtro">
                         </div>
                     </div>
                     
@@ -151,12 +169,10 @@
                     <tbody id="gastos-tabla"></tbody>
                 </table>
             </div>
-            <!-- Alternativa Móvil -->
             <div id="gastos-cards-mobile" class="mobile-cards"></div>
         </div>
     </section>
 
-    <!-- 3. SURTIDO -->
     <section id="view-surtido" class="view-section">
         <div class="table-wrapper">
             <div class="view-header" style="flex-direction: column; align-items: stretch; gap: 0.75rem;">
@@ -179,12 +195,10 @@
                     <tbody id="surtido-tabla"></tbody>
                 </table>
             </div>
-            <!-- Alternativa Móvil -->
             <div id="surtido-cards-mobile" class="mobile-cards"></div>
         </div>
     </section>
 
-    <!-- 4. CONFIGURACIÓN -->
     <section id="view-config" class="view-section">
         <div class="config-wrapper">
             <div class="view-header" style="flex-direction: column; align-items: flex-start; gap: 1rem; margin-bottom: 1rem;">
@@ -207,7 +221,6 @@
                 </aside>
                 
                 <div class="config-content">
-                    <!-- SUBVISTA PRODUCTOS -->
                     <div id="config-productos" class="config-panel active">
                         <div class="view-header">
                             <div style="font-weight:900; font-size: 1.125rem; display:flex; align-items:center; gap:0.5rem;">
@@ -234,7 +247,6 @@
                         </div>
                     </div>
                     
-                    <!-- SUBVISTA USUARIOS -->
                     <div id="config-usuarios" class="config-panel">
                         <div class="view-header">
                             <div style="font-weight:900; font-size: 1.125rem; display:flex; align-items:center; gap:0.5rem;">
@@ -265,17 +277,24 @@
         </div>
     </section>
 
-    <!-- 5. HISTORIAL -->
     <section id="view-historial" class="view-section">
         <div class="table-wrapper">
             <div class="view-header" style="flex-direction: column; align-items: stretch; gap: 0.75rem; margin-bottom: 0;">
                 <div>
                     <h2 class="view-title">Historial de Ventas</h2>
+                    <div class="sub-tab-container" style="margin-top: 1rem;">
+    <button class="sub-tab active" id="btn-sub-ventas" onclick="cambiarSubVistaHistorial('ventas')">
+        <i data-lucide="shopping-bag" style="width:1rem;"></i> Ventas Realizadas
+    </button>
+    <button class="sub-tab" id="btn-sub-cotizaciones" onclick="cambiarSubVistaHistorial('cotizaciones')">
+        <i data-lucide="file-text" style="width:1rem;"></i> Cotizaciones
+    </button>
+</div>
                     <p class="view-subtitle">Consulta folios, métodos de pago, estados y movimientos del día.</p>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; border-top: 1px solid var(--secundario); padding-top: 0.75rem;">
                     <span style="font-weight:800; font-size: 0.875rem; color:var(--texto);"><i data-lucide="calendar" style="width:1rem; height:1rem; vertical-align:middle; color:var(--primario)"></i> Filtrar:</span>
-                    <select id="tipo-filtro-historial" onchange="cambiarModoFiltro()" style="width:auto; padding:0.4rem 0.75rem;">
+                    <select id="tipo-filtro-historial" onchange="cambiarModoFiltro()" class="input-filtro">
                         <option value="hoy" selected>Día de Hoy (Corte de Caja)</option>
                         <option value="dia">Día Específico</option>
                         <option value="rango">Rango de Fechas</option>
@@ -283,17 +302,16 @@
                     </select>
                     
                     <div id="filtro-dia-container" style="display:none; align-items:center; gap:0.375rem;">
-                        <input type="date" id="filtro-fecha-dia" onchange="cargarVentas()" style="width:auto; padding:0.4rem;">
+                        <input type="date" id="filtro-fecha-dia" onchange="cargarVentas()" class="input-filtro">
                     </div>
                     <div id="filtro-rango-container" style="display:none; align-items:center; gap:0.375rem;">
-                        <input type="date" id="filtro-fecha-inicio" onchange="cargarVentas()" style="width:auto; padding:0.4rem;"> 
+                        <input type="date" id="filtro-fecha-inicio" onchange="cargarVentas()" class="input-filtro"> 
                         <span>a</span> 
-                        <input type="date" id="filtro-fecha-fin" onchange="cargarVentas()" style="width:auto; padding:0.4rem;">
+                        <input type="date" id="filtro-fecha-fin" onchange="cargarVentas()" class="input-filtro">
                     </div>
                 </div>
             </div>
 
-            <!-- Resumen Dinámico -->
             <div id="resumen-dashboard" style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1rem; margin-top:1rem;"></div>
             
             <div class="table-container">
@@ -302,18 +320,12 @@
                     <tbody id="historial-tabla"></tbody>
                 </table>
             </div>
-            <!-- Alternativa Móvil -->
             <div id="historial-cards-mobile" class="mobile-cards"></div>
         </div>
     </section>
 
 </main>
 
-<!-- ============================================================ -->
-<!-- MODALES CENTRALES FLOTANTES -->
-<!-- ============================================================ -->
-
-<!-- Modal: VARIANTS PRODUCTO POS -->
 <div id="modal-variantes-pos" class="overlay modal-gsap" style="display:flex;">
     <div class="modal-box" id="modal-variantes-pos-box" style="max-width: 26rem;">
         <h3 id="titulo-variantes-pos" style="margin-top:0; margin-bottom:1rem; font-size:1.25rem; font-weight:900; border-bottom:2px solid var(--borde); padding-bottom:0.75rem; color:var(--texto);"></h3>
@@ -325,7 +337,6 @@
     </div>
 </div>
 
-<!-- Modal AÑADIR / EDITAR VARIANTE ADMIN -->
 <div id="modal-form-variante-admin" class="overlay modal-gsap" style="display:flex;">
     <div class="modal-box" id="modal-variante-admin-box">
         <h3 id="form-variante-titulo" style="margin-top:0; margin-bottom:1.25rem; font-size:1.25rem; border-bottom:2px solid var(--borde); padding-bottom:0.75rem; font-weight:900; display:flex; align-items:center; gap:0.5rem; color:var(--texto);">
@@ -364,7 +375,6 @@
     </div>
 </div>
 
-<!-- Barra cobrar móvil -->
 <div id="barra-cobrar-movil">
   <div>
     <div id="bcm-label">Total</div>
@@ -373,7 +383,6 @@
   <button id="bcm-btn" onclick="abrirResumenMovil()">Cobrar →</button>
 </div>
 
-<!-- Modal resumen checkout móvil -->
 <div id="modal-resumen-movil" class="overlay modal-gsap" style="display:flex">
   <div class="modal-box" id="modal-resumen-movil-box" style="max-width:24rem; width:95%; padding: 1.25rem;">
     <h3 style="margin:0 0 1rem; font-size:1.25rem; font-weight:900; border-bottom:2px solid var(--borde); padding-bottom:0.75rem; display:flex; align-items:center; gap:0.5rem; color:var(--texto);">
@@ -384,15 +393,16 @@
       <span>Total</span>
       <span id="resumen-movil-total" class="tabular-nums" style="color:var(--texto)">$0.00</span>
     </div>
-    <div style="display:flex; gap:0.5rem;">
+    
+    <div style="display:flex; gap:0.5rem; flex-wrap: wrap;">
       <button class="btn btn-peligro" style="padding:0.625rem;" onclick="vaciarCarritoCompleto()" title="Vaciar pedido"><i data-lucide="trash-2"></i></button>
       <button class="btn btn-outline" style="flex:1" onclick="cerrarModal('modal-resumen-movil')">← Volver</button>
+      <button id="btn-cotizar-resumen" class="btn btn-outline" style="flex:1;" onclick="generarCotizacionPDF()"><i data-lucide="file-text"></i> Cotizar</button>
       <button class="btn btn-primario" style="flex:2; font-size:1.125rem;" onclick="cerrarModal('modal-resumen-movil'); setTimeout(abrirModalPago,220)"><i data-lucide="credit-card"></i> Pagar</button>
     </div>
   </div>
 </div>
 
-<!-- Modal: WhatsApp Sharing -->
 <div id="modal-whatsapp" class="overlay modal-gsap" style="display:flex;">
     <div class="modal-box" id="modal-whatsapp-box" style="max-width: 22rem;">
         <h3 style="margin-top:0; margin-bottom:1.25rem; font-size: 1.25rem; border-bottom: 2px solid var(--borde); padding-bottom: 0.75rem; font-weight: 900; display:flex; align-items:center; gap:0.5rem; color:var(--texto);">
@@ -411,11 +421,17 @@
     </div>
 </div>
 
-<!-- Modal: Cobrar POS -->
 <div id="modal-pago" class="overlay modal-gsap" style="display:flex;">
     <div class="modal-box" id="modal-pago-box">
         <h2 style="margin-top:0; text-align:center; font-size:1.5rem; font-weight: 900; display:flex; align-items:center; justify-content:center; gap:0.5rem; color:var(--texto);"><i data-lucide="check-circle" style="color:var(--primario)"></i> Completar Venta</h2>
         <div style="text-align:center; font-size:2.5rem; font-weight:900; color:var(--texto); margin: 1.25rem 0;" class="tabular-nums"><span id="modal-pago-total">$0.00</span></div>
+        
+        <div class="form-group" style="margin-bottom: 1rem;">
+            <label for="input-cliente-pago" style="font-weight:800;">Cliente</label>
+            <input type="text" id="input-cliente-pago" placeholder="Ej. Juan Pérez" onkeydown="enterNavegar(event, 'input-efectivo')" style="width:100%;">
+            <small style="display:block; margin-top:0.35rem; color:var(--texto-muted); font-size:0.75rem; font-weight:800;">Opcional. Si lo dejas vacío, se enviará como Mostrador.</small>
+        </div>
+
         <div class="pago-row"><div class="pago-label"><i data-lucide="banknote" style="color:#788562;"></i> Efectivo</div><div class="pago-input-wrapper"><input type="text" id="input-efectivo" placeholder="$0.00" oninput="formatearMonedaInput(event); validarMontos()" onkeydown="enterNavegar(event, 'input-transferencia')"></div></div>
         <div class="pago-row"><div class="pago-label"><i data-lucide="credit-card" style="color:var(--info);"></i> Transf/TC</div><div class="pago-input-wrapper"><input type="text" id="input-transferencia" placeholder="$0.00" oninput="formatearMonedaInput(event); validarMontos()" onkeydown="enterAccionCondicional(event)"></div></div>
         <div id="pago-mensaje" style="text-align:center; font-weight:800; height:1.25rem; margin-bottom:1rem; font-size:0.9375rem;"></div>
@@ -426,7 +442,6 @@
     </div>
 </div>
 
-<!-- Modal: Añadir INSUMO -->
 <div id="modal-form-insumo" class="overlay modal-gsap" style="display:flex;">
     <div class="modal-box" id="modal-insumo-box">
         <h3 id="form-insumo-titulo" style="margin-top:0; margin-bottom:1.25rem; font-size: 1.25rem; border-bottom: 2px solid var(--borde); padding-bottom: 0.75rem; font-weight: 900; display:flex; align-items:center; gap:0.5rem; color:var(--texto);"><i data-lucide="box" style="color:var(--primario)"></i> Añadir Insumo</h3>
@@ -445,7 +460,6 @@
     </div>
 </div>
 
-<!-- Modal: Añadir PRODUCTO -->
 <div id="modal-form-producto" class="overlay modal-gsap" style="display:flex;">
     <div class="modal-box" id="modal-producto-box">
         <h3 id="form-prod-titulo" style="margin-top:0; margin-bottom:1.25rem; font-size: 1.25rem; border-bottom: 2px solid var(--borde); padding-bottom: 0.75rem; font-weight: 900; display:flex; align-items:center; gap:0.5rem; color:var(--texto);"><i data-lucide="tag" style="color:var(--primario)"></i> Añadir Producto</h3>
@@ -466,7 +480,6 @@
     </div>
 </div>
 
-<!-- Modal AÑADIR / EDITAR USUARIO -->
 <div id="modal-form-usuario" class="overlay modal-gsap" style="display:flex;">
     <div class="modal-box" id="modal-usuario-box">
         <h3 id="form-usuario-titulo" style="margin-top:0; margin-bottom:1.25rem; font-size:1.25rem; border-bottom:2px solid var(--borde); padding-bottom:0.75rem; font-weight:900; display:flex; align-items:center; gap:0.5rem; color:var(--texto);">
@@ -504,7 +517,6 @@
     </div>
 </div>
 
-<!-- Modal: Añadir GASTO -->
 <div id="modal-form-gasto" class="overlay modal-gsap" style="display:flex;">
     <div class="modal-box" id="modal-gasto-box">
         <h3 id="form-gasto-titulo" style="margin-top:0; margin-bottom:1.25rem; font-size: 1.25rem; border-bottom: 2px solid var(--borde); padding-bottom: 0.75rem; font-weight: 900; display:flex; align-items:center; gap:0.5rem; color:var(--texto);"><i data-lucide="minus-circle" style="color:var(--peligro)"></i> Registrar Gasto</h3>
@@ -530,7 +542,6 @@
     </div>
 </div>
 
-<!-- Modal: GESTOR DE CATEGORÍAS -->
 <div id="modal-categorias" class="overlay modal-gsap" style="display:flex;">
     <div class="modal-box" id="modal-categorias-box">
         <h2 id="titulo-modal-cat" style="margin-top:0; border-bottom: 2px solid var(--borde); padding-bottom: 0.75rem; font-size:1.25rem; font-weight: 900; display:flex; align-items:center; gap:0.5rem; color:var(--texto);"><i data-lucide="folder-tree" style="color:var(--primario)"></i> Categorías</h2>
@@ -544,7 +555,6 @@
     </div>
 </div>
 
-<!-- WIDGET DE ZOOM GLOBAL -->
 <div class="zoom-widget-container">
     <div class="zoom-menu" id="zoom-menu">
         <div class="zoom-header">Tamaño: <span id="zoom-text-val">100%</span></div>
@@ -555,6 +565,8 @@
     <button class="fab-btn" onclick="toggleZoomMenu()" title="Ajustar Tamaño de Pantalla"><i data-lucide="search"></i></button>
 </div>
 
+
 <script src="script.js"></script>
+
 </body>
 </html>
