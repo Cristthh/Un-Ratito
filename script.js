@@ -114,11 +114,8 @@ function getTabByView(viewId) {
     return document.querySelector(`.nav-tab[onclick*="showView('${viewId}'"]`);
 }
 
-// 🚀 MEJORA DE RENDIMIENTO: Función vaciada para evitar peticiones a DB al cambiar de pestaña.
 function runViewLoaders(viewId) {
-    // Ya no hacemos cargarVentas(), cargarGastos(), etc. aquí.
-    // Toda la data se cargó en init() y se mantiene sincronizada con cada acción de guardado/edición.
-    // Esto hace que el cambio entre pestañas sea instantáneo y no dependa del internet.
+    // La data se cargó en init() y se mantiene sincronizada.
 }
 
 function showView(viewId, tabEl = null) {
@@ -143,7 +140,6 @@ function showView(viewId, tabEl = null) {
     
     runViewLoaders(viewId);
     
-    // --- LÓGICA DE VISIBILIDAD DE LA LUPA DE ZOOM ---
     const zoomWidget = document.querySelector('.zoom-widget-container');
     if (zoomWidget) {
         if (viewId === 'pos') {
@@ -152,7 +148,6 @@ function showView(viewId, tabEl = null) {
             zoomWidget.style.display = 'none';
         }
     }
-    // ------------------------------------------------
     
     entrante.classList.add('gsap-transitioning');
     entrante.classList.add('active');
@@ -230,9 +225,6 @@ function showConfigTab(tabId, btn) {
     document.querySelectorAll('.config-panel').forEach(p => p.classList.remove('active'));
     const panel = document.getElementById(`config-${tabId}`);
     if(panel) panel.classList.add('active');
-    
-    // 🚀 MEJORA DE RENDIMIENTO: Eliminamos cargarProductos() y cargarUsuarios()
-    // Ya están en memoria y se actualizan solos al guardar. El cambio será instantáneo.
 }
 
 function animarFilasTabla(tbodyId) {
@@ -263,14 +255,12 @@ function cambiarZoomGlobal(delta, reset = false) {
   const zoomText = document.getElementById('zoom-text-val');
   if (zoomText) zoomText.innerText = currentZoomPercentage + '%';
   
-  // 1. Escala global instantánea (Solo en escritorio para no romper navegación móvil)
   if (window.innerWidth > 768) {
       document.documentElement.style.fontSize = currentZoomPercentage + '%';
   } else {
       document.documentElement.style.fontSize = '100%';
   }
   
-  // 2. Escala suave controlada por variables (Siempre activo para POS móvil)
   aplicarZoomControlesMoviles();
 }
 
@@ -351,7 +341,7 @@ function aplicarZoomControlesMoviles() {
 //  5. SUPABASE & INIT
 // ============================================================
 const supabaseUrl = 'https://lejhmgcjegqxhcxohjmb.supabase.co';
-const supabaseKey = 'sb_publishable_r068lSWcdA2J1oO0FTg8Ww_TIkcCt47';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlamhtZ2NqZWdxeGhjeG9oam1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MDIxNTIsImV4cCI6MjA5MjA3ODE1Mn0.E3wGb07j5PARXLa4Kwjabs_m-Cxo8fKL46lelFvhQAs';
 const client = window.supabase.createClient(supabaseUrl, supabaseKey);
 let currentUser = null; 
 let DB = { 
@@ -384,7 +374,7 @@ window.addEventListener('load', () => {
 
 async function intentarLogin() {
     const u = document.getElementById('login-user').value; const p = document.getElementById('login-pass').value;
-    const { data } = await client.from('usuarios').select('*').eq('username', u).eq('password', p).single();
+    const { data } = await client.from('usuarios').select('*').eq('username', u).eq('password', p).maybeSingle();
     if (data) {
         currentUser = data;
         gsap.to('#login-overlay', { opacity: 0, duration: 0.3, ease: 'power2.in', onComplete: () => { document.getElementById('login-overlay').style.display = 'none'; const sidebar = document.getElementById('main-sidebar'); sidebar.style.display = 'flex'; gsap.fromTo(sidebar, { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, ease: 'power2.out' }); } });
@@ -395,6 +385,22 @@ async function intentarLogin() {
         document.getElementById('login-error').style.display = 'block';
         gsap.fromTo('#login-box', { x: -8 }, { x: 0, duration: 0.4, ease: 'elastic.out(1, 0.3)', clearProps: 'x' }); gsap.fromTo('#login-box', { x: 8 }, { x: 0, duration: 0.4, ease: 'elastic.out(1, 0.3)' });
     }
+}
+
+function togglePassword() {
+    const input = document.getElementById('login-pass');
+    const icon = document.getElementById('icono-pass');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.setAttribute('data-lucide', 'eye-off'); // Cambia al icono de ojo tachado
+    } else {
+        input.type = 'password';
+        icon.setAttribute('data-lucide', 'eye'); // Vuelve al icono normal
+    }
+    
+    // Le pedimos a Lucide que refresque el icono que acabamos de cambiar
+    lucide.createIcons({ root: icon.parentElement }); 
 }
 
 async function init() {
@@ -889,70 +895,267 @@ function abrirResumenMovil() {
     abrirModal('modal-resumen-movil', 'modal-resumen-movil-box');
 }
 
-function abrirModalPago() { if(DB.totalActual <= 0) return; document.getElementById('modal-pago-total').innerText = `$${DB.totalActual.toFixed(2)}`; document.getElementById('input-efectivo').value = ''; document.getElementById('input-transferencia').value = ''; document.getElementById('pago-mensaje').innerText = ''; document.getElementById('btn-confirmar-pago').disabled = true; abrirModal('modal-pago', 'modal-pago-box'); validarMontos(); setTimeout(() => document.getElementById('input-efectivo').focus(), 300); }
+// --- ACTUALIZACIÓN: abrirModalPago con cliente ---
+function abrirModalPago() { 
+    if(DB.totalActual <= 0) return; 
+    document.getElementById('modal-pago-total').innerText = `$${DB.totalActual.toFixed(2)}`; 
+    
+    // Limpieza de campos
+    const inputCliente = document.getElementById('input-cliente-pago');
+    if(inputCliente) inputCliente.value = '';
+    
+    document.getElementById('input-efectivo').value = ''; 
+    document.getElementById('input-transferencia').value = ''; 
+    document.getElementById('pago-mensaje').innerText = ''; 
+    document.getElementById('btn-confirmar-pago').disabled = true; 
+    
+    abrirModal('modal-pago', 'modal-pago-box'); 
+    validarMontos(); 
+    
+    // Focus automático al cliente en lugar del efectivo
+    setTimeout(() => {
+        const inputCliente = document.getElementById('input-cliente-pago');
+        if (inputCliente) inputCliente.focus();
+        else document.getElementById('input-efectivo').focus();
+    }, 300); 
+}
+
 function cerrarModalPago() { cerrarModal('modal-pago'); }
 
 function validarMontos() { const ef = obtenerMontoLimpio(document.getElementById('input-efectivo').value); const tr = obtenerMontoLimpio(document.getElementById('input-transferencia').value); const suma = ef + tr; const msg = document.getElementById('pago-mensaje'); const btn = document.getElementById('btn-confirmar-pago'); if (suma === 0) { msg.innerText = ""; btn.disabled = true; return; } if (suma < DB.totalActual) { msg.style.color = 'var(--peligro)'; msg.innerText = `Faltan: $${(DB.totalActual - suma).toFixed(2)}`; btn.disabled = true; } else if (suma > DB.totalActual && tr > DB.totalActual) { msg.style.color = 'var(--peligro)'; msg.innerText = `Excede el total`; btn.disabled = true; } else { const cambio = suma - DB.totalActual; if (cambio > 0) { msg.style.color = 'var(--primario-hover)'; msg.innerText = `Cambio: $${cambio.toFixed(2)}`; } else { msg.style.color = 'var(--primario-hover)'; msg.innerText = `Monto exacto ✅`; } btn.disabled = false; } }
 
+// ============================================================
+// FUNCIONES AUXILIARES PARA EL RECIBO Y COTIZACIONES
+// ============================================================
+function numeroALetras(num) {
+    function unidad(numero) {
+        switch (numero) {
+            case 9: return "NUEVE"; case 8: return "OCHO"; case 7: return "SIETE"; case 6: return "SEIS"; case 5: return "CINCO"; case 4: return "CUATRO"; case 3: return "TRES"; case 2: return "DOS"; case 1: return "UN"; case 0: return "";
+        }
+    }
+    function decena(numero) {
+        if (numero >= 90 && numero <= 99) return "NOVENTA " + (numero % 10 !== 0 ? "Y " + unidad(numero % 10) : "");
+        if (numero >= 80 && numero <= 89) return "OCHENTA " + (numero % 10 !== 0 ? "Y " + unidad(numero % 10) : "");
+        if (numero >= 70 && numero <= 79) return "SETENTA " + (numero % 10 !== 0 ? "Y " + unidad(numero % 10) : "");
+        if (numero >= 60 && numero <= 69) return "SESENTA " + (numero % 10 !== 0 ? "Y " + unidad(numero % 10) : "");
+        if (numero >= 50 && numero <= 59) return "CINCUENTA " + (numero % 10 !== 0 ? "Y " + unidad(numero % 10) : "");
+        if (numero >= 40 && numero <= 49) return "CUARENTA " + (numero % 10 !== 0 ? "Y " + unidad(numero % 10) : "");
+        if (numero >= 30 && numero <= 39) return "TREINTA " + (numero % 10 !== 0 ? "Y " + unidad(numero % 10) : "");
+        if (numero >= 20 && numero <= 29) return numero === 20 ? "VEINTE" : "VEINTI" + unidad(numero % 10);
+        if (numero >= 10 && numero <= 19) {
+            switch (numero) { case 10: return "DIEZ"; case 11: return "ONCE"; case 12: return "DOCE"; case 13: return "TRECE"; case 14: return "CATORCE"; case 15: return "QUINCE"; case 16: return "DIECISEIS"; case 17: return "DIECISIETE"; case 18: return "DIECIOCHO"; case 19: return "DIECINUEVE"; }
+        }
+        return unidad(numero);
+    }
+    function centena(numero) {
+        if (numero >= 900) return "NOVECIENTOS " + decena(numero - 900);
+        if (numero >= 800) return "OCHOCIENTOS " + decena(numero - 800);
+        if (numero >= 700) return "SETECIENTOS " + decena(numero - 700);
+        if (numero >= 600) return "SEISCIENTOS " + decena(numero - 600);
+        if (numero >= 500) return "QUINIENTOS " + decena(numero - 500);
+        if (numero >= 400) return "CUATROCIENTOS " + decena(numero - 400);
+        if (numero >= 300) return "TRESCIENTOS " + decena(numero - 300);
+        if (numero >= 200) return "DOSCIENTOS " + decena(numero - 200);
+        if (numero >= 100) return numero === 100 ? "CIEN" : "CIENTO " + decena(numero - 100);
+        return decena(numero);
+    }
+    function miles(numero) {
+        let divisor = 1000; let cientos = Math.floor(numero / divisor); let resto = numero - (cientos * divisor); let strMiles = "";
+        if (cientos > 0) { if (cientos === 1) strMiles = "MIL "; else strMiles = centena(cientos) + " MIL "; }
+        return strMiles + centena(resto);
+    }
+    function millones(numero) {
+        let divisor = 1000000; let cientos = Math.floor(numero / divisor); let resto = numero - (cientos * divisor); let strMillones = "";
+        if (cientos > 0) { if (cientos === 1) strMillones = "UN MILLON "; else strMillones = centena(cientos) + " MILLONES "; }
+        return strMillones + miles(resto);
+    }
+
+    let entero = Math.floor(num);
+    let centavos = Math.round((num - entero) * 100);
+    let strCentavos = centavos < 10 ? "0" + centavos : centavos;
+    
+    if (entero === 0) return "CERO PESOS " + strCentavos + "/100 M.N.";
+    if (entero === 1) return "UN PESO " + strCentavos + "/100 M.N.";
+    
+    let resultado = "";
+    if (entero >= 1000000) resultado = millones(entero);
+    else if (entero >= 1000) resultado = miles(entero);
+    else resultado = centena(entero);
+    
+    return resultado.trim() + " PESOS " + strCentavos + "/100 M.N.";
+}
+
+function obtenerNombreClientePago() {
+    const input = document.getElementById('input-cliente-pago');
+    const nombre = input ? input.value.trim() : '';
+    return nombre ? primeraLetraMayuscula(nombre) : 'Mostrador';
+}
+
+function construirDetallesReciboDesdeCarrito() {
+    return DB.carrito.map(item => {
+        const cantidad = Number(item.cantidad || 0);
+        const precioUnitario = Number(item.precio || 0);
+        const subtotal = cantidad * precioUnitario;
+        return {
+            cantidad: cantidad.toString(),
+            concepto: item.variante_nombre ? `${item.nombre} - ${item.variante_nombre}` : item.nombre,
+            precio_unitario: `$${precioUnitario.toFixed(2)}`,
+            total: `$${subtotal.toFixed(2)}`
+        };
+    });
+}
+
+function construirPayloadRecibo(venta, detalles, nombreCliente) {
+    const fechaVenta = venta?.created_at ? formatearFechaDDMMAAAA(venta.created_at) : formatearFechaDDMMAAAA(new Date());
+    const totalLetras = numeroALetras(Number(venta?.total || 0));
+
+    return {
+        folio: venta?.folio || `V-${Date.now().toString().slice(-6)}`,
+        cliente: nombreCliente || 'Mostrador',
+        fecha: fechaVenta,
+        metodo_pago: venta?.metodo_pago || 'No especificado',
+        total: `$${Number(venta?.total || 0).toFixed(2)}`,
+        total_letras: totalLetras,
+        detalles: detalles
+    };
+}
+
+// ── NUEVO: descarga PDF binario directo desde la Edge Function ──────────────
+const RECIBO_FUNCTION_URL = "https://lejhmgcjegqxhcxohjmb.supabase.co/functions/v1/generar-recibo";
+
+async function descargarReciboPDF(payload, nombre = null) {
+    const nombreArchivo = nombre
+        ? `${nombre}.pdf`
+        : `cotizacion-${payload.folio || Date.now()}.pdf`;
+    mostrarToast("Generando PDF...", "info");
+    try {
+        const response = await fetch(RECIBO_FUNCTION_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error Edge Function: ${response.status} — ${errorText}`);
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = nombreArchivo;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        mostrarToast("¡PDF listo para compartir!", "success");
+    } catch (err) {
+        console.error("Error al generar PDF:", err);
+        mostrarToast("Error al generar PDF: " + err.message, "error");
+    }
+}
+
+// ============================================================
+// PROCESAR VENTA (REEMPLAZO TOTAL)
+// ============================================================
 async function procesarVentaBD() {
     const btnId = 'btn-confirmar-pago';
     const prevHTML = setButtonLoading(btnId, 'Procesando...');
     
-    const ef = obtenerMontoLimpio(document.getElementById('input-efectivo').value); const tr = obtenerMontoLimpio(document.getElementById('input-transferencia').value);
-    let metodo_final = 'Mixto'; if (ef >= DB.totalActual && tr === 0) metodo_final = 'Efectivo'; if (tr >= DB.totalActual && ef === 0) metodo_final = 'Transferencia';
+    const ef = obtenerMontoLimpio(document.getElementById('input-efectivo').value);
+    const tr = obtenerMontoLimpio(document.getElementById('input-transferencia').value);
+    const nombreCliente = obtenerNombreClientePago();
+    
+    let metodo_final = 'Mixto';
+    if (ef >= DB.totalActual && tr === 0) metodo_final = 'Efectivo';
+    if (tr >= DB.totalActual && ef === 0) metodo_final = 'Transferencia';
     
     try {
-        if(DB.modoEdicion) {
-            const { error } = await client.from('ventas').update({ total: DB.totalActual, metodo_pago: metodo_final, monto_efectivo: ef, monto_transferencia: tr }).eq('id', DB.ventaIdEdicion);
+        if (DB.modoEdicion) {
+            const { error } = await client
+                .from('ventas')
+                .update({
+                    total: DB.totalActual,
+                    metodo_pago: metodo_final,
+                    monto_efectivo: ef,
+                    monto_transferencia: tr
+                    // cliente: nombreCliente // (Descomenta cuando agregues la columna "cliente" en la BD)
+                })
+                .eq('id', DB.ventaIdEdicion);
+                
             if (error) throw error;
             await client.from('ventas_detalle').delete().eq('venta_id', DB.ventaIdEdicion);
             
-            const nuevosDetalles = DB.carrito.map(i => ({ 
-                venta_id: DB.ventaIdEdicion, 
-                producto_id: i.id, 
-                producto_nombre: i.nombre + (i.variante_nombre ? ' - ' + i.variante_nombre : ''), 
-                cantidad: i.cantidad, 
-                precio_unitario: i.precio, 
+            const nuevosDetalles = DB.carrito.map(i => ({
+                venta_id: DB.ventaIdEdicion,
+                producto_id: i.id,
+                producto_nombre: i.nombre + (i.variante_nombre ? ' - ' + i.variante_nombre : ''),
+                cantidad: i.cantidad,
+                precio_unitario: i.precio,
                 subtotal: i.precio * i.cantidad,
                 variante_id: i.variante_id || null,
                 variante_nombre: i.variante_nombre || null,
                 precio_base: i.precio_base,
-                precio_extra_variante: i.precio_extra_variante 
+                precio_extra_variante: i.precio_extra_variante
             }));
             
-            await client.from('ventas_detalle').insert(nuevosDetalles); mostrarToast("Venta actualizada.", "success"); cancelarEdicion();
+            const { error: errorDetalles } = await client.from('ventas_detalle').insert(nuevosDetalles);
+            if (errorDetalles) throw errorDetalles;
+            
+            mostrarToast("Venta actualizada.", "success");
+            cancelarEdicion();
+            
         } else {
             const folio = `V-${Date.now().toString().slice(-6)}`;
-            const { data: v, error } = await client.from('ventas').insert([{ 
-                folio, 
-                total: DB.totalActual, 
-                metodo_pago: metodo_final, 
-                monto_efectivo: ef, 
-                monto_transferencia: tr, 
-                estado: 'Completada', 
-                cajero: currentUser.username,
-                usuario_id: currentUser.id
-            }]).select().single();
+            
+            const { data: v, error } = await client
+                .from('ventas')
+                .insert([{
+                    folio,
+                    // cliente: nombreCliente, // (Descomenta cuando agregues la columna "cliente" en la BD)
+                    total: DB.totalActual,
+                    metodo_pago: metodo_final,
+                    monto_efectivo: ef,
+                    monto_transferencia: tr,
+                    estado: 'Completada',
+                    cajero: currentUser.username,
+                    usuario_id: currentUser.id
+                }])
+                .select()
+                .single();
+                
             if (error) throw error;
             
-            const detalles = DB.carrito.map(i => ({ 
-                venta_id: v.id, 
-                producto_id: i.id, 
-                producto_nombre: i.nombre + (i.variante_nombre ? ' - ' + i.variante_nombre : ''), 
-                cantidad: i.cantidad, 
-                precio_unitario: i.precio, 
+            const detalles = DB.carrito.map(i => ({
+                venta_id: v.id,
+                producto_id: i.id,
+                producto_nombre: i.nombre + (i.variante_nombre ? ' - ' + i.variante_nombre : ''),
+                cantidad: i.cantidad,
+                precio_unitario: i.precio,
                 subtotal: i.precio * i.cantidad,
                 variante_id: i.variante_id || null,
                 variante_nombre: i.variante_nombre || null,
                 precio_base: i.precio_base,
-                precio_extra_variante: i.precio_extra_variante 
+                precio_extra_variante: i.precio_extra_variante
             }));
             
-            await client.from('ventas_detalle').insert(detalles); mostrarToast(`Venta registrada: ${folio}`, "success");
+            const { error: errorDetalles } = await client.from('ventas_detalle').insert(detalles);
+            if (errorDetalles) throw errorDetalles;
+            
+            mostrarToast(`Venta registrada: ${folio}`, "success");
         }
-        cerrarModalPago(); DB.carrito =[]; renderTicket(); cargarVentas(); renderPOS(); sincronizarTotalesYBarra();
-    } catch(e) { 
-        mostrarToast("Error al procesar: " + e.message, "error"); 
+        
+        cerrarModalPago();
+        DB.carrito = [];
+        renderTicket();
+        cargarVentas();
+        renderPOS();
+        sincronizarTotalesYBarra();
+        
+    } catch (e) {
+        mostrarToast("Error al procesar: " + e.message, "error");
     } finally {
         if (prevHTML) clearButtonLoading(btnId, prevHTML);
     }
@@ -1046,7 +1249,37 @@ async function eliminarCategoria(id, nombre_actual, tipo) {
 }
 
 // --- ARQUEO DE CAJA E HISTORIAL ---
-function cambiarModoFiltro() { const modo = document.getElementById('tipo-filtro-historial').value; document.getElementById('filtro-dia-container').style.display = modo === 'dia' ? 'flex' : 'none'; document.getElementById('filtro-rango-container').style.display = modo === 'rango' ? 'flex' : 'none'; cargarVentas(); }
+
+let subVistaHistorialActual = 'ventas';
+
+async function cambiarSubVistaHistorial(vista) {
+    subVistaHistorialActual = vista;
+    
+    document.getElementById('btn-sub-ventas').classList.toggle('active', vista === 'ventas');
+    document.getElementById('btn-sub-cotizaciones').classList.toggle('active', vista === 'cotizaciones');
+    
+    const thead = document.querySelector('#view-historial table thead tr');
+    if (vista === 'ventas') {
+        thead.innerHTML = '<th>Folio</th><th>Hora/Fecha</th><th>Cajero</th><th>Método</th><th>Total</th><th>Estado</th><th>Acciones</th>';
+        cargarVentas(); 
+    } else {
+        thead.innerHTML = '<th>Folio</th><th>Fecha</th><th>Cliente</th><th>Método Probable</th><th>Total</th><th>Estado</th><th>Acciones</th>';
+        cargarCotizaciones(); 
+    }
+    lucide.createIcons();
+}
+
+function cambiarModoFiltro() { 
+    const modo = document.getElementById('tipo-filtro-historial').value; 
+    document.getElementById('filtro-dia-container').style.display = modo === 'dia' ? 'flex' : 'none'; 
+    document.getElementById('filtro-rango-container').style.display = modo === 'rango' ? 'flex' : 'none'; 
+    
+    if (subVistaHistorialActual === 'ventas') {
+        cargarVentas(); 
+    } else {
+        cargarCotizaciones();
+    }
+}
 
 function renderHistorialMobileCards(ventasData) {
     const cont = document.getElementById('historial-cards-mobile');
@@ -1072,6 +1305,32 @@ function renderHistorialMobileCards(ventasData) {
                 <span class="mobile-card-val" style="font-size:1.2rem;">$${v.total.toFixed(2)}</span>
             </div>
             ${acciones ? `<div class="mobile-card-actions">${acciones}</div>` : ''}
+        </div>`;
+    }).join('');
+    lucide.createIcons({root: cont});
+}
+
+function renderCotizacionesMobileCards(cotizacionesData) {
+    const cont = document.getElementById('historial-cards-mobile');
+    if(!cont) return;
+    cont.innerHTML = cotizacionesData.map(c => {
+        const fechaStr = formatearFechaDDMMAAAA(c.created_at);
+        const acciones = `<button class="btn btn-outline btn-sm" onclick="reimprimirCotizacion('${c.folio}')" title="Reimprimir PDF"><i data-lucide="printer"></i> Reimprimir</button>`;
+        
+        return `
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <span style="font-weight:900; font-size:1.1rem;">${c.folio}</span>
+                <span class="badge" style="background:#FEF3C7; color:#92400E;">${c.estado || 'Cotización'}</span>
+            </div>
+            <div class="mobile-card-row"><span class="mobile-card-label">Fecha</span><span class="mobile-card-val">${fechaStr}</span></div>
+            <div class="mobile-card-row"><span class="mobile-card-label">Cliente</span><span class="mobile-card-val">${c.cliente || 'Mostrador'}</span></div>
+            <div class="mobile-card-row"><span class="mobile-card-label">Método</span><span class="mobile-card-val">${c.metodo_pago}</span></div>
+            <div class="mobile-card-row" style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px dashed var(--borde);">
+                <span class="mobile-card-label" style="font-size:1rem;">Total</span>
+                <span class="mobile-card-val" style="font-size:1.2rem;">$${parseFloat(c.total).toFixed(2)}</span>
+            </div>
+            <div class="mobile-card-actions" style="justify-content:flex-end;">${acciones}</div>
         </div>`;
     }).join('');
     lucide.createIcons({root: cont});
@@ -1129,7 +1388,6 @@ async function cargarVentas() {
     }).join('');
     
     lucide.createIcons({root: document.getElementById('historial-tabla')});
-    animarFilasTabla('historial-tabla');
     renderHistorialMobileCards(ventasData);
 
     const totalGastos = gastosData.reduce((acc, curr) => acc + curr.monto, 0);
@@ -1150,6 +1408,83 @@ async function cargarVentas() {
             <div class="summary-box"><span class="summary-label">Egresos (Gastos)</span><span class="summary-value val-gasto tabular-nums">-$${totalGastos.toFixed(2)}</span></div>
             <div class="summary-box" style="background: ${utilidad >= 0 ? 'var(--sidebar-bg)' : 'var(--peligro)'}; color: white;"><span class="summary-label" style="color:rgba(255,255,255,0.8);">Balance de Período</span><span class="summary-value tabular-nums" style="color:${utilidad >= 0 ? 'var(--primario)' : 'white'};">$${utilidad.toFixed(2)}</span></div>
         `;
+    }
+}
+
+async function cargarCotizaciones() {
+    let qCot = client.from('cotizaciones').select('*').order('created_at', { ascending: false }); 
+    
+    const modo = document.getElementById('tipo-filtro-historial').value; 
+    const hoyMexico = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+
+    if (modo === 'hoy') {
+        qCot = qCot.gte('created_at', hoyMexico + 'T00:00:00-06:00').lte('created_at', hoyMexico + 'T23:59:59-06:00'); 
+    } else if (modo === 'dia') { 
+        const f = document.getElementById('filtro-fecha-dia').value; 
+        if (f) qCot = qCot.gte('created_at', f + 'T00:00:00-06:00').lte('created_at', f + 'T23:59:59-06:00');
+    } else if (modo === 'rango') { 
+        const fi = document.getElementById('filtro-fecha-inicio').value; const ff = document.getElementById('filtro-fecha-fin').value; 
+        if (fi) qCot = qCot.gte('created_at', fi + 'T00:00:00-06:00');
+        if (ff) qCot = qCot.lte('created_at', ff + 'T23:59:59-06:00');
+    }
+
+    const { data, error } = await qCot;
+
+    if (error) { mostrarToast("Error al cargar cotizaciones", "error"); return; }
+
+    const tbody = document.querySelector('#view-historial table tbody');
+    tbody.innerHTML = data.map(c => `
+        <tr>
+            <td><b class="tabular-nums">${c.folio}</b></td>
+            <td>${formatearFechaDDMMAAAA(c.created_at)}</td>
+            <td><span class="badge" style="background:var(--borde); color:var(--texto);">${c.cliente || 'Mostrador'}</span></td>
+            <td>${c.metodo_pago}</td>
+            <td style="font-weight:bold; color:var(--texto);" class="tabular-nums">$${parseFloat(c.total).toFixed(2)}</td>
+            <td><span class="badge" style="background:#FEF3C7; color:#92400E;">${c.estado}</span></td>
+            <td>
+                <button class="btn btn-outline btn-sm" onclick="reimprimirCotizacion('${c.folio}')" title="Reimprimir PDF"><i data-lucide="printer"></i></button>
+            </td>
+        </tr>
+    `).join('');
+    
+    lucide.createIcons({root: tbody});
+    
+    // Aquí mandamos a llamar a la función que pinta las tarjetas móviles
+    renderCotizacionesMobileCards(data);
+    
+    // Limpiar dashboard de dinero
+    document.getElementById('resumen-dashboard').innerHTML = '';
+}
+
+async function reimprimirCotizacion(folio) {
+    mostrarToast("Recuperando cotización...", "info");
+    try {
+        const { data: cot, error } = await client.from('cotizaciones').select('*').eq('folio', folio).single();
+        if (error || !cot) throw new Error("No se encontró la cotización");
+
+        const { data: det, error: errDet } = await client.from('cotizaciones_detalle').select('*').eq('cotizacion_id', cot.id);
+        if (errDet) throw new Error("Error al cargar detalles");
+
+        const detalles = det.map(d => ({
+            cantidad: d.cantidad.toString(),
+            concepto: d.producto_nombre,
+            precio_unitario: `$${Number(d.precio_unitario).toFixed(2)}`,
+            total: `$${Number(d.subtotal).toFixed(2)}`
+        }));
+
+        const payload = {
+            folio: cot.folio,
+            cliente: cot.cliente || 'Mostrador',
+            fecha: formatearFechaDDMMAAAA(cot.created_at),
+            metodo_pago: cot.metodo_pago || 'Pendiente',
+            total: `$${Number(cot.total).toFixed(2)}`,
+            total_letras: numeroALetras(Number(cot.total)),
+            detalles: detalles
+        };
+
+        await descargarReciboPDF(payload, `cotizacion-${folio}`);
+    } catch (e) {
+        mostrarToast(e.message, "error");
     }
 }
 
@@ -1295,11 +1630,15 @@ async function guardarGasto() {
     const btnId = 'btn-guardar-gasto';
     const prevHTML = setButtonLoading(btnId);
 
-    try {
+try {
         if (id) { const { error } = await client.from('gastos').update(payload).eq('id', id); if (error) throw error; } 
         else { const { error } = await client.from('gastos').insert([payload]); if (error) throw error; }
-        cerrarModalGasto(); cargarDatalistsGastos(); await cargarGastos(); mostrarToast("Gasto guardado", "success");
-    } catch(e) { 
+        cerrarModalGasto(); 
+        cargarDatalistsGastos(); 
+        await cargarGastos(); 
+        cargarVentas(); // <-- ¡AQUÍ ESTÁ LA MAGIA! Actualiza el historial al instante.
+        mostrarToast("Gasto guardado", "success");
+    } catch(e) {
         mostrarToast("Error: " + e.message, "error"); 
     } finally {
         if (prevHTML) clearButtonLoading(btnId, prevHTML);
@@ -1326,7 +1665,12 @@ function editarGastoLogic(id) {
 function limpiarFormGastoLogic() { document.getElementById('form-gasto-titulo').innerHTML = `<i data-lucide="minus-circle"></i> Registrar Gasto`; lucide.createIcons();['g-id','g-monto','g-proveedor','g-desc'].forEach(id => document.getElementById(id).value = ''); document.getElementById('g-categoria').value = ''; }
 async function borrarGasto(id) { 
     const result = await Swal.fire({ title: '¿Eliminar este gasto?', icon: 'warning', showCancelButton: true, confirmButtonColor: 'var(--peligro)', cancelButtonColor: '#907050', confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar' });
-    if (result.isConfirmed) { await client.from('gastos').delete().eq('id', id); cargarGastos(); mostrarToast("Gasto eliminado", "info"); } 
+    if (result.isConfirmed) { 
+        await client.from('gastos').delete().eq('id', id); 
+        cargarGastos(); 
+        cargarVentas(); // <-- ¡AQUÍ TAMBIÉN!
+        mostrarToast("Gasto eliminado", "info"); 
+    } 
 }
 
 // --- SURTIDO ---
@@ -1629,7 +1973,7 @@ function renderTablaUsuarios() {
                 })})'>
                     <i data-lucide="edit-2"></i>
                 </button>
-                <button class="btn btn-peligro btn-sm" onclick="borrarUsuario(${u.id})">
+                <button class="btn btn-peligro btn-sm" onclick="borrarUsuario('${u.id}')">
                     <i data-lucide="trash-2"></i>
                 </button>
             </td>
@@ -1718,5 +2062,110 @@ async function borrarUsuario(id) {
         mostrarToast('Usuario eliminado.', 'info');
     } catch(e) {
         mostrarToast('Error: ' + e.message, 'error');
+    }
+}
+
+// ============================================================
+//  7. GENERACIÓN DE COTIZACIONES (PDF)
+// ============================================================
+async function generarCotizacionPDF() {
+    if (DB.carrito.length === 0) {
+        mostrarToast('El carrito está vacío.', 'warning');
+        return;
+    }
+
+    // 1. Pedir el nombre del cliente y el método de pago con el diseño premium
+    const { value: formValues } = await Swal.fire({
+        title: 'Datos de la Cotización',
+        html: `
+            <div class="form-group" style="text-align: left; margin-top: 1.5rem;">
+                <label for="swal-input-cliente">Nombre del Cliente</label>
+                <input type="text" id="swal-input-cliente" placeholder="Ej. Juan Pérez">
+            </div>
+            <div class="form-group" style="text-align: left; margin-top: 1rem;">
+                <label for="swal-input-metodo">Método de Pago</label>
+                <select id="swal-input-metodo" style="cursor: pointer;">
+                    <option value="Pendiente" selected>Pendiente</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Transferencia">Transferencia</option>
+                </select>
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonColor: 'var(--primario)',
+        cancelButtonColor: '#907050',
+        confirmButtonText: 'Generar Cotización',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            return [
+                document.getElementById('swal-input-cliente').value,
+                document.getElementById('swal-input-metodo').value
+            ]
+        }
+    });
+
+    if (!formValues) return; // Si canceló
+
+    const nombreCliente = formValues[0];
+    const metodoPago = formValues[1];
+
+    const btnId = 'btn-cotizar-resumen'; 
+    const prevHTML = setButtonLoading(btnId, 'Generando...');
+
+    try {
+        // 2. Generar el total escrito con letras usando nuestra nueva función
+        const totalLetras = numeroALetras(DB.totalActual);
+
+        // 3. Armamos los datos
+        const detallesCotizacion = construirDetallesReciboDesdeCarrito();
+        const payloadCotizacion = {
+            folio: 'C-' + Date.now().toString().slice(-6),
+            cliente: nombreCliente || 'Mostrador',
+            fecha: formatearFechaDDMMAAAA(new Date()),
+            metodo_pago: metodoPago || 'Pendiente',
+            total: `$${DB.totalActual.toFixed(2)}`,
+            total_letras: totalLetras,
+            detalles: detallesCotizacion
+        };
+        
+        // --- GUARDAR EN BASE DE DATOS (SEGURIDAD) ---
+        const { data: cot, error: errCot } = await client
+            .from('cotizaciones')
+            .insert([{
+                folio: payloadCotizacion.folio,
+                cliente: payloadCotizacion.cliente,
+                total: DB.totalActual,
+                metodo_pago: payloadCotizacion.metodo_pago,
+                cajero: currentUser.username,
+                usuario_id: currentUser.id
+            }])
+            .select().single();
+
+        if (errCot) throw errCot;
+
+        const detallesCot = DB.carrito.map(i => ({
+            cotizacion_id: cot.id,
+            producto_id: i.id,
+            producto_nombre: i.nombre + (i.variante_nombre ? ' - ' + i.variante_nombre : ''),
+            cantidad: i.cantidad,
+            precio_unitario: i.precio,
+            subtotal: i.precio * i.cantidad
+        }));
+
+        await client.from('cotizaciones_detalle').insert(detallesCot);
+        // --------------------------------------------
+
+        // 4. Enviamos los datos a la Edge Function y descargamos el PDF
+        await descargarReciboPDF(payloadCotizacion, `cotizacion-${payloadCotizacion.folio}`);
+        
+        mostrarToast('Cotización generada con éxito.', 'success');
+        cerrarModal('modal-resumen-movil');
+
+    } catch (error) {
+        console.error("Error al generar Cotización:", error);
+        mostrarToast('Hubo un error al generar la cotización.', 'error');
+    } finally {
+        if (prevHTML) clearButtonLoading(btnId, prevHTML);
     }
 }
